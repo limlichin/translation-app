@@ -3,4 +3,4 @@ easyocr==1.6.2
 deep-translator==1.11.1
 Pillow==10.1.0
 torch==2.1.0
-numpy==1.26.2
+numpy
