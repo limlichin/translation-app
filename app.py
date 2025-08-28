@@ -2,49 +2,53 @@ import streamlit as st
 import easyocr
 from deep_translator import GoogleTranslator
 from PIL import Image
-import numpy as np
+import io
 
-# Title
-st.title("Image Text Translator")
+st.title("🌍 Image Text Translator")
 
-# Step 1: Language selection first
-st.subheader("Step 1: Choose Translation Language")
+# Step 1: Language selection (before image upload)
+st.subheader("Step 1: Select Target Language")
+
+# 💡 Supported Languages
+language_options = {
+    "ID": "Bahasa Indonesia",
+    "MS": "Bahasa Melayu",
+    "TH": "Thai",
+    "VI": "Vietnamese",
+    "ZH": "Simplified Chinese",
+    "JA": "Japanese",
+    "KO": "Korean"
+}
 target_lang = st.selectbox(
-    "Select the language you want to translate to:",
-    ["en", "zh-CN", "fr", "de", "es", "ja", "ko", "id", "ms", "th", "vi"],
-    index=1  # default to Chinese (zh-CN)
+    "Choose the target language:",
+    options=list(language_options.keys()),
+    format_func=lambda x: f"{x} - {language_options[x]}"
 )
 
 # Step 2: Upload image
 st.subheader("Step 2: Upload Image")
-uploaded_file = st.file_uploader("Upload an image with text", type=["jpg", "jpeg", "png"])
+uploaded_file = st.file_uploader("Upload an image containing text", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
-    # Open and display image
-    image = Image.open(uploaded_file).convert("RGB")
+    # Open image properly with PIL
+    image = Image.open(uploaded_file)
     st.image(image, caption="Uploaded Image", use_container_width=True)
 
-    # Step 3: Extract text with EasyOCR
-    st.subheader("Step 3: Extract Text from Image")
-    reader = easyocr.Reader(["en"], gpu=False)  # English only
+    # Step 3: OCR
+    st.subheader("Step 3: Extracted Text")
+    reader = easyocr.Reader(['en'])  # we assume English text only
     results = reader.readtext(np.array(image))
 
-    extracted_text = "\n".join([res[1] for res in results])
-    st.text_area("Extracted Text (English)", extracted_text, height=150)
+    extracted_text = " ".join([res[1] for res in results])
+    st.write("**Detected Text:**")
+    st.write(extracted_text)
 
-    # Step 4: Translate
+    # Step 4: Translation
     if extracted_text.strip():
         st.subheader("Step 4: Translated Text")
         try:
-            translated_text = GoogleTranslator(source="auto", target=target_lang).translate(extracted_text)
-            st.text_area("Translated Text", translated_text, height=150)
-
-            # Optional: download translated text
-            st.download_button(
-                label="Download Translation",
-                data=translated_text,
-                file_name="translation.txt",
-                mime="text/plain"
-            )
+            translated = GoogleTranslator(source='en', target=target_lang.lower()).translate(extracted_text)
+            st.success(f"**Translation ({language_options[target_lang]}):**")
+            st.write(translated)
         except Exception as e:
-            st.error(f"Translation failed: {e}")
+            st.error(f"Translation failed: {str(e)}")
