@@ -1,4 +1,6 @@
-streamlit
-pillow
-pytesseract
-deep-translator
+streamlit==1.36.0
+pillow==10.4.0
+deep-translator==1.11.4
+easyocr==1.7.1
+torch
+torchvision
