@@ -1,6 +1,6 @@
 import streamlit as st
 from PIL import Image
-import easyocr
+import pytesseract
 from deep_translator import GoogleTranslator
 
 # 💡 Supported Languages
@@ -16,13 +16,13 @@ LANGUAGES = {
 
 st.title("🌏 Shared Translation Tool (POC)")
 
-# Step 1: Language selection (multi-select)
+# Step 1: Language selection
 selected_langs = st.multiselect(
     "Select languages to translate into:",
     options=list(LANGUAGES.keys())
 )
 
-# Step 2: Image upload
+# Step 2: File uploader
 uploaded_file = st.file_uploader(
     "Upload an image (JPG, PNG, JPEG, GIF)", type=["jpg", "png", "jpeg", "gif"]
 )
@@ -31,17 +31,15 @@ if uploaded_file and selected_langs:
     image = Image.open(uploaded_file)
     st.image(image, caption="Uploaded Image", use_container_width=True)
 
-    # Step 3: OCR with EasyOCR
-    reader = easyocr.Reader(["en"], gpu=False)
-    result = reader.readtext(np.array(image))
-    
-    lines = [text for _, text, _ in result]
-    
+    # OCR text extraction (English only)
+    extracted_text = pytesseract.image_to_string(image, lang="eng")
+    lines = [line.strip() for line in extracted_text.split("\n") if line.strip()]
+
     if not lines:
         st.warning("⚠️ No text detected in the image.")
     else:
         st.subheader("📋 Translation Table")
-        header_cols = ["EN"] + [lang.split()[0] for lang in selected_langs]
+        header_cols = ["EN"] + [lang for lang in selected_langs]
 
         table = []
         for line in lines:
@@ -56,7 +54,7 @@ if uploaded_file and selected_langs:
 
         st.table([header_cols] + table)
 
-        # Step 4: Correction input
+        # Bonus: correction input
         st.subheader("✍️ Provide Corrected Translations")
         corrections = {}
         for row in table:
