@@ -2,53 +2,68 @@ import streamlit as st
 import easyocr
 from deep_translator import GoogleTranslator
 from PIL import Image
-import io
-
-st.title("🌍 Image Text Translator")
-
-# Step 1: Language selection (before image upload)
-st.subheader("Step 1: Select Target Language")
 
 # 💡 Supported Languages
-language_options = {
-    "ID": "Bahasa Indonesia",
-    "MS": "Bahasa Melayu",
-    "TH": "Thai",
-    "VI": "Vietnamese",
-    "ZH": "Simplified Chinese",
-    "JA": "Japanese",
-    "KO": "Korean"
+LANGUAGES = {
+    "Bahasa Indonesia 🇮🇩": "id",
+    "Bahasa Melayu 🇲🇾": "ms",
+    "Thai 🇹🇭": "th",
+    "Vietnamese 🇻🇳": "vi",
+    "Simplified Chinese 🇨🇳": "zh-CN",
+    "Japanese 🇯🇵": "ja",
+    "Korean 🇰🇷": "ko"
 }
-target_lang = st.selectbox(
-    "Choose the target language:",
-    options=list(language_options.keys()),
-    format_func=lambda x: f"{x} - {language_options[x]}"
+
+st.title("🌏 Shared Translation Tool (POC)")
+
+# Step 1: Language selection (multi-select)
+selected_langs = st.multiselect(
+    "Select target languages:",
+    options=list(LANGUAGES.keys())
 )
 
-# Step 2: Upload image
-st.subheader("Step 2: Upload Image")
-uploaded_file = st.file_uploader("Upload an image containing text", type=["jpg", "jpeg", "png"])
+# Step 2: File uploader
+uploaded_file = st.file_uploader("Upload an image (JPG, PNG, JPEG, GIF)", type=["jpg", "jpeg", "png", "gif"])
 
-if uploaded_file is not None:
-    # Open image properly with PIL
+if uploaded_file and selected_langs:
+    # Convert to PIL image
     image = Image.open(uploaded_file)
     st.image(image, caption="Uploaded Image", use_container_width=True)
 
-    # Step 3: OCR
-    st.subheader("Step 3: Extracted Text")
-    reader = easyocr.Reader(['en'])  # we assume English text only
-    results = reader.readtext(np.array(image))
+    # OCR with EasyOCR (English only)
+    reader = easyocr.Reader(['en'])
+    ocr_results = reader.readtext(image)
+    lines = [text for _, text, _ in ocr_results]
 
-    extracted_text = " ".join([res[1] for res in results])
-    st.write("**Detected Text:**")
-    st.write(extracted_text)
+    if not lines:
+        st.warning("⚠️ No text detected in the image.")
+    else:
+        st.subheader("📋 Translation Table")
+        header_cols = ["EN"] + [lang.split()[0] for lang in selected_langs]
+        table = []
 
-    # Step 4: Translation
-    if extracted_text.strip():
-        st.subheader("Step 4: Translated Text")
-        try:
-            translated = GoogleTranslator(source='en', target=target_lang.lower()).translate(extracted_text)
-            st.success(f"**Translation ({language_options[target_lang]}):**")
-            st.write(translated)
-        except Exception as e:
-            st.error(f"Translation failed: {str(e)}")
+        for line in lines:
+            row = [line]
+            for lang in selected_langs:
+                try:
+                    translation = GoogleTranslator(source='en', target=LANGUAGES[lang]).translate(line)
+                    row.append(translation)
+                except Exception:
+                    row.append("⚠️ Translation failed")
+            table.append(row)
+
+        st.table([header_cols] + table)
+
+        # Bonus: correction input
+        st.subheader("✍️ Provide Corrected Translations")
+        corrections = {}
+        for row in table:
+            st.markdown(f"**Original (EN):** {row[0]}")
+            for i, lang in enumerate(selected_langs, start=1):
+                corrected = st.text_input(f"Corrected {lang}:", value=row[i], key=f"{row[0]}-{lang}")
+                if corrected != row[i]:
+                    corrections[(row[0], lang)] = corrected
+
+        if corrections:
+            st.write("✅ Stored corrections for future use:")
+            st.json(corrections)
